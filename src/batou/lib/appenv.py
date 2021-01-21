@@ -76,6 +76,7 @@ class Requirements(Component):
                     for link in self.extra_index_urls))
                 f.write('\n')
             f.write('\n'.join(sorted(locked)))
+            f.write('\n')
 
 
 class LockedRequirements(Component):
