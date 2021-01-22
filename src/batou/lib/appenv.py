@@ -9,6 +9,7 @@ import requirements
 class VirtualEnv(Component):
 
     namevar = 'python_version'
+    pip_version = None
 
     def verify(self):
         assert os.path.exists(self.parent.env_ready)
@@ -24,6 +25,10 @@ class VirtualEnv(Component):
         self.cmd(
             '{{component.parent.env_dir}}/bin/python -m pip '
             'install --upgrade pip')
+        if self.pip_version:
+            self.cmd(
+                '{{component.parent.env_dir}}/bin/pip '
+                f'install pip=={self.pip_version}')
 
 
 class Requirements(Component):
@@ -127,6 +132,7 @@ class AppEnv(Component):
     """
 
     namevar = 'python_version'
+    pip_version = None
 
     def configure(self):
         lockfile = open('requirements.lock', 'r').read()
@@ -140,7 +146,7 @@ class AppEnv(Component):
         self.env_dir = os.path.join('.appenv', self.env_hash)
         self.env_ready = os.path.join(self.env_dir, 'appenv.ready')
 
-        self += VirtualEnv(self.python_version)
+        self += VirtualEnv(self.python_version, pip_version=self.pip_version)
         self += File(
             os.path.join(self.env_dir, 'requirements.lock'),
             content=lockfile)
