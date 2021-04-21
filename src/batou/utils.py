@@ -113,6 +113,7 @@ def resolve_v6(host, port, resolve_override=resolve_v6_override):
                 host, int(port),
                 socket.AF_INET6)[0][4][0]
         except socket.gaierror:
+            raise
             address = None
     if address and address.startswith('fe80:'):
         # Don't hand out link-local addresses. This happes with
