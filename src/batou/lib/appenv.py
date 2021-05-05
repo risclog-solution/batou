@@ -22,13 +22,14 @@ class VirtualEnv(Component):
         self.cmd(
             'python{{component.python_version}} -m venv '
             '{{component.parent.env_dir}}')
-        self.cmd(
-            '{{component.parent.env_dir}}/bin/python -m pip '
-            'install --upgrade pip')
         if self.pip_version:
             self.cmd(
                 '{{component.parent.env_dir}}/bin/pip '
                 f'install pip=={self.pip_version}')
+        else:
+            self.cmd(
+                '{{component.parent.env_dir}}/bin/python -m pip '
+                'install --upgrade pip')
 
 
 class Requirements(Component):
@@ -90,11 +91,10 @@ class LockedRequirements(Component):
         assert os.path.exists(self.parent.env_ready)
 
     def update(self):
-        self.python = os.path.join(self.parent.env_dir, 'bin', 'python')
-        self.cmd(
-            '{{component.python}} -m pip install --no-deps '
-            '-r {{component.parent.env_dir}}/requirements.lock')
-        self.cmd('{{component.python}} -m pip check')
+        self.python = os.path.join(self.parent.env_dir, "bin", "python")
+        self.cmd("{{component.python}} -m pip install --no-deps "
+                 "-r {{component.parent.env_dir}}/requirements.lock")
+        self.cmd("{{component.python}} -m pip check")
 
 
 class CleanupUnused(Component):
@@ -102,16 +102,16 @@ class CleanupUnused(Component):
     cleanup = ()
 
     def verify(self):
-        if not os.path.exists('.appenv/'):
+        if not os.path.exists(".appenv/"):
             return
-        protected = set(
-            [self.parent.env_hash, self.parent.last_env_hash, 'current'])
-        self.cleanup = set(os.listdir('.appenv/')) - protected
+        protected = set([
+            self.parent.env_hash, self.parent.last_env_hash, "current"])
+        self.cleanup = set(os.listdir(".appenv/")) - protected
         assert not self.cleanup
 
     def update(self):
         for path in self.cleanup:
-            ensure_path_nonexistent(os.path.join('.appenv', path))
+            ensure_path_nonexistent(os.path.join(".appenv", path))
 
 
 class AppEnv(Component):
@@ -131,46 +131,41 @@ class AppEnv(Component):
 
     """
 
-    namevar = 'python_version'
+    namevar = "python_version"
     pip_version = None
 
     def configure(self):
-        lockfile = open('requirements.lock', 'r').read()
-
-        hash_content = (
-            lockfile +
-            self.python_version +
-            open(__file__, 'r').read())
-        hash_content = hash_content.encode('utf-8')
-        self.env_hash = hashlib.new('sha256', hash_content).hexdigest()[:8]
-        self.env_dir = os.path.join('.appenv', self.env_hash)
-        self.env_ready = os.path.join(self.env_dir, 'appenv.ready')
+        with open("requirements.lock", "r") as f:
+            lockfile = f.read()
+        with open(__file__, "r") as f:
+            hash_content = lockfile + self.python_version + f.read()
+        hash_content = hash_content.encode("utf-8")
+        self.env_hash = hashlib.new("sha256", hash_content).hexdigest()[:8]
+        self.env_dir = os.path.join(".appenv", self.env_hash)
+        self.env_ready = os.path.join(self.env_dir, "appenv.ready")
 
         self += VirtualEnv(self.python_version, pip_version=self.pip_version)
         self += File(
-            os.path.join(self.env_dir, 'requirements.lock'),
-            content=lockfile)
+            os.path.join(self.env_dir, "requirements.lock"), content=lockfile)
         self += LockedRequirements()
 
         # If we got here, then we can place the ready marker
         self += File(
-            os.path.join(self.env_dir, 'appenv.ready'),
-            content="Ready or not, here I come, you can\'t hide\n")
+            os.path.join(self.env_dir, "appenv.ready"),
+            content="Ready or not, here I come, you can't hide\n")
 
         # Save current to skip it in cleanup
         self.last_env_hash = None
-        if os.path.exists(f'{self.workdir}/.appenv/current'):
+        if os.path.exists(os.path.join(self.workdir, ".appenv/current")):
             self.last_env_hash = os.path.basename(
-                os.readlink(f'{self.workdir}/.appenv/current'))
+                os.readlink(os.path.join(self.workdir, ".appenv/current")))
 
         # Shim
-        self += Symlink(
-            '.appenv/current',
-            source=self.env_dir)
-        for p in ['bin', 'lib', 'pyvenv.cfg']:
-            self += Symlink(p, source='.appenv/current/' + p)
+        self += Symlink(".appenv/current", source=self.env_dir)
+        for p in ["bin", "lib", "pyvenv.cfg"]:
+            self += Symlink(p, source=".appenv/current/" + p)
 
-        self += CleanupUnused(self.env_dir)
+        self += CleanupUnused()
 
     @property
     def namevar_for_breadcrumb(self):
